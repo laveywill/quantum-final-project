@@ -2,22 +2,31 @@ let photons = [];
 let filters = [];
 let mirrors = [];
 let waveplates = [];
+let beamsplitters = [];
+
+let standard_basis = [];
+
+const SPEED = 5;
 
 function setup() {
-  createCanvas(1000, 800);
+  createCanvas(800, 600);
   angleMode(RADIANS);
   noStroke();
 
-  photons.push(new Photon(createVector(width/2, height/2), createVector(0, 1), createVector(1, 0)));
-  filters.push(new Filter(createVector(3 * width / 4, height / 2), createVector(1, 0)));
-  mirrors.push(new Mirror(createVector(2*width / 3, height / 2), PI/4));
-  waveplates.push(new Waveplate(createVector(3*width/5, height/2), PI/4));
+  standard_basis.push(createVector(1, 0));
+  standard_basis.push(createVector(0, 1));
+
+  initializeDraft();
 }
 
 function draw() {
   background(240);
 
   photons = photons.filter((p) => !p.absorbed);
+
+  if (photons.length <= 0) {
+    photons.push(new Photon(createVector(width/4, height/4), createVector(1, 0), createVector(1, 0)));
+  }
 
   photons.forEach((p) => {
     p.update();
@@ -35,13 +44,37 @@ function draw() {
   waveplates.forEach((w) => {
     w.draw();
   });
+
+  beamsplitters.forEach((b) => {
+    b.draw();
+  });
 }
+
+function initializeDraft() {
+
+  photons.push(new Photon(createVector(width/4, height/4), createVector(1,0), createVector(1, 0)));
+  waveplates.push(new Waveplate(createVector(width/3, height/4), PI/4));
+
+  mirrors.push(new Mirror(createVector(3*width/4, height / 4), -PI/4));
+  mirrors.push(new Mirror(createVector(3*width/4, 3*height / 4), PI/4));
+
+  filters.push(new Filter(createVector(width/3, 3*height/4), createVector(1,0)))
+
+  mirrors.push(new Mirror(createVector(width/5, 3*height / 4), -PI/4));
+  mirrors.push(new Mirror(createVector(width/5, height / 4), PI/4));
+}
+
+// class Photon {
+//   constructor() {
+//     this.superpositions = [];
+//   }
+// }
 
 class Photon {
   constructor(position, amplitudes, direction) {
     this.position = position
     this.amplitudes = amplitudes;
-    this.direction = direction;
+    this.direction = direction.mult(SPEED);
     this.rotation = atan2(this.amplitudes.y, this.amplitudes.x);;
     this.absorbed = false;
   }
@@ -72,16 +105,16 @@ class Photon {
     }
 
     filters.forEach((f) => {
-      if (p5.Vector.dist(f.position, this.position) < 10) {
+      if (p5.Vector.dist(f.position, this.position) < SPEED) {
         [this.absorbed, this.amplitudes] = measure(this, f);
-        this.rotation = asin(this.amplitudes.x) * (Math.sign(this.amplitudes.y));
+        this.rotation = atan2(this.amplitudes.y, this.amplitudes.x);
       }
     });
 
     mirrors.forEach((m) => {
       const distance = p5.Vector.dist(m.position, this.position);
     
-      if (distance < 3) {
+      if (distance < SPEED/2) {
         // currently traveling at pi/2 into a pi/4 mirror. We want the result to be traveling at 0.
         const normal = p5.Vector.fromAngle(m.angle).normalize();
 
@@ -91,17 +124,51 @@ class Photon {
         const reflection = this.direction.sub(p5.Vector.mult(normal, 2 * dotProduct));
     
         // Update direction
-        this.direction = reflection.normalize();
+        this.direction = reflection.normalize().mult(SPEED);
       }
     });
 
     waveplates.forEach((w) => {
-      if (p5.Vector.dist(w.position, this.position) < 1) {
+      if (p5.Vector.dist(w.position, this.position) < SPEED/2) {
+        // print(this.rotation)
+        // print(w.angle)
         this.rotation += w.angle;
+        // print(this.rotation)
         this.amplitudes = p5.Vector.fromAngle(this.rotation);
       }
     });
 
+    // beamsplitters.forEach((b) => {
+    //   if (p5.Vector.dist(b.position, this.position) < 1) {
+    //     // create two new superpositions
+    //     const new_pos = this.position;
+    //     const new_direction = 0;
+    //     const new_amplitudes = this.amplitudes;
+    //     const new_rotation = this.rotation;
+
+    //     photons.push(new Photon())
+
+    //   }
+    // })
+
+  }
+}
+
+class Beamsplitter {
+  constructor(position) {
+    this.position = position;
+  }
+
+  draw() {
+    stroke('black')
+    push();
+    translate(this.position.x, this.position.y);
+    rect(-20, -20, 40, 40);
+    // line from top left to bottom right
+    line(-20, -20, 20, 20);
+    pop();
+
+    noStroke();
   }
 }
 
@@ -112,18 +179,14 @@ class Mirror {
   }
 
   draw() {
-    stroke('grey');
-    strokeWeight(4);
 
     push();
+    stroke('grey');
+    strokeWeight(4);
     translate(this.position.x, this.position.y);
     rotate(-this.angle);
     line(-20, 0, 20, 0);
-    stroke('red');
-    point(0, 0)
     pop();
-
-    noStroke();
   }
 }
 
@@ -135,9 +198,9 @@ class Waveplate {
   }
 
   draw() {
-    fill('lightblue');
 
     push();
+    fill('lightblue');
     translate(this.position.x, this.position.y);
     circle(0, 0, 40);
     textSize(20);
@@ -155,8 +218,27 @@ class Filter {
   }
 
   draw() {
-    fill('blue');
-    rect(this.position.x - 10, this.position.y - 20, 20, 40);
+ 
+    push();
+    translate(this.position.x, this.position.y);
+    fill('darkgrey');
+    noStroke();
+    rect(-10, -20, 20, 40);
+
+    stroke('yellow');
+    strokeWeight(3);
+
+    if (this.polarization.x === 1 & this.polarization.y === 0) {
+      line(-5, -20, -5, 20);
+      line(5, -20, 5, 20);
+    } else if (this.polarization.x === 0 & this.polarization.y === 1) {
+      line(-10, -10, 10, -10);
+      line(-10, 10, 10, 10);
+    }
+
+    noStroke();
+    pop();
+
   }
 }
 
@@ -170,6 +252,7 @@ function measure(photon, filter) {
   // Calculate the probability of passing through the filter
   let projection = p5.Vector.dot(photon.amplitudes, filter.polarization);
   let probability = projection ** 2;
+  print(probability);
 
   // Determine if photon passes or is absorbed
   if (random() < probability) {
