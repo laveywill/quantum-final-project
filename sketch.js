@@ -6,10 +6,10 @@ let beamsplitters = [];
 
 let standard_basis = [];
 
-const SPEED = 5;
+const SPEED = 10;
 
 function setup() {
-  createCanvas(800, 600);
+  createCanvas(windowWidth, windowHeight);
   angleMode(RADIANS);
   noStroke();
 
@@ -114,26 +114,19 @@ class Photon {
     mirrors.forEach((m) => {
       const distance = p5.Vector.dist(m.position, this.position);
     
-      if (distance < SPEED/2) {
-        // currently traveling at pi/2 into a pi/4 mirror. We want the result to be traveling at 0.
+      if (distance < SPEED) {
         const normal = p5.Vector.fromAngle(m.angle).normalize();
 
-        // Reflect the direction using the formula:
-        // r = d - 2 (d · n) n
         const dotProduct = this.direction.dot(normal);
         const reflection = this.direction.sub(p5.Vector.mult(normal, 2 * dotProduct));
     
-        // Update direction
         this.direction = reflection.normalize().mult(SPEED);
       }
     });
 
     waveplates.forEach((w) => {
       if (p5.Vector.dist(w.position, this.position) < SPEED/2) {
-        // print(this.rotation)
-        // print(w.angle)
         this.rotation += w.angle;
-        // print(this.rotation)
         this.amplitudes = p5.Vector.fromAngle(this.rotation);
       }
     });
@@ -185,7 +178,7 @@ class Mirror {
     strokeWeight(4);
     translate(this.position.x, this.position.y);
     rotate(-this.angle);
-    line(-20, 0, 20, 0);
+    line(-30, 0, 30, 0);
     pop();
   }
 }
@@ -202,10 +195,10 @@ class Waveplate {
     push();
     fill('lightblue');
     translate(this.position.x, this.position.y);
-    circle(0, 0, 40);
+    circle(0, 0, 60);
     textSize(20);
     fill('black');
-    text(concat(this.text, "º"), -15, 7);
+    text(concat(this.text, "º"), -20, 7);
     pop();
 
   }
@@ -222,15 +215,17 @@ class Filter {
     push();
     translate(this.position.x, this.position.y);
     fill('darkgrey');
-    noStroke();
-    rect(-10, -20, 20, 40);
+    stroke('lightyellow')
+    rect(-20, -40, 40, 80);
 
     stroke('yellow');
     strokeWeight(3);
 
     if (this.polarization.x === 1 & this.polarization.y === 0) {
-      line(-5, -20, -5, 20);
-      line(5, -20, 5, 20);
+      line(-5, -40, -5, 40);
+      line(5, -40, 5, 40);
+      line(-15, -40, -15, 40);
+      line(15, -40, 15, 40);
     } else if (this.polarization.x === 0 & this.polarization.y === 1) {
       line(-10, -10, 10, -10);
       line(-10, 10, 10, 10);
