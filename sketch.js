@@ -6,7 +6,10 @@ let beamsplitters = [];
 
 let standard_basis = [];
 
-const SPEED = 3;
+// consider adding wait times so that elements of the simulation only act once,
+// can then make interaction zone larger so we get less clipping
+
+let speed_slider;
 
 function setup() {
   createCanvas(windowWidth-200, windowHeight-200);
@@ -14,12 +17,17 @@ function setup() {
   colorMode(HSB, 360, 100, 100, 1);
   noStroke();
 
+  speed_slider = createSlider(0, 10, 4, 1);
+  speed_slider.position(50, height);
+
+  speed_slider.input(updatePhotonSpeeds);
+
   standard_basis.push(createVector(1, 0));
   standard_basis.push(createVector(0, 1));
 
+  // Canvas Simulation
   // initializeDraft();
   initializeInterferometer();
-  
 }
 
 function draw() {
@@ -65,7 +73,6 @@ function initializeInterferometer() {
   beamsplitters.push(new Beamsplitter(createVector(width/3, height/4)));
   beamsplitters.push(new Beamsplitter(createVector(3*width/4, 3*height/4)));
 
-  mirrors.push();
 }
 
 function initializeDraft() {
@@ -96,7 +103,7 @@ class Photon {
     });
 
     this.closeToBeamsplitter = this.superpositions.some((s) => 
-      beamsplitters.some((b) => p5.Vector.dist(b.position, s.position) < SPEED)
+      beamsplitters.some((b) => p5.Vector.dist(b.position, s.position) < speed_slider.value()/2)
     );
 
 
@@ -115,7 +122,7 @@ class Photon {
         };
         if (percent_vertical > 0) {
           this.superpositions.push(
-            new Superposition(s.position.copy(), createVector(0, 1), s.direction.copy().rotate(PI/4).normalize(), percent_vertical)
+            new Superposition(s.position.copy(), createVector(0, 1), s.direction.copy().rotate(PI/2).normalize(), percent_vertical)
           );  
         };
 
@@ -131,7 +138,7 @@ class Superposition {
   constructor(position, amplitudes, direction, alpha) {
     this.position = position
     this.amplitudes = amplitudes;
-    this.direction = direction.mult(SPEED);
+    this.direction = direction.setMag(speed_slider.value());
     this.rotation = atan2(this.amplitudes.y, this.amplitudes.x);
     this.absorbed = false;
     this.alpha = alpha;
@@ -163,7 +170,7 @@ class Superposition {
     }
 
     filters.forEach((f) => {
-      if (p5.Vector.dist(f.position, this.position) < SPEED) {
+      if (p5.Vector.dist(f.position, this.position) < speed_slider.value()) {
         [this.absorbed, this.amplitudes] = measure(this, f);
         this.rotation = atan2(this.amplitudes.y, this.amplitudes.x);
       }
@@ -172,18 +179,18 @@ class Superposition {
     mirrors.forEach((m) => {
       const distance = p5.Vector.dist(m.position, this.position);
     
-      if (distance < SPEED) {
+      if (distance < speed_slider.value()) {
         const normal = p5.Vector.fromAngle(m.angle).normalize();
 
         const dotProduct = this.direction.dot(normal);
         const reflection = this.direction.sub(p5.Vector.mult(normal, 2 * dotProduct));
     
-        this.direction = reflection.normalize().mult(SPEED);
+        this.direction = reflection.normalize().setMag(speed_slider.value());
       }
     });
 
     waveplates.forEach((w) => {
-      if (p5.Vector.dist(w.position, this.position) < SPEED/2) {
+      if (p5.Vector.dist(w.position, this.position) < speed_slider.value()/2) {
         this.rotation += w.angle;
         this.amplitudes = p5.Vector.fromAngle(this.rotation);
       }
@@ -282,6 +289,16 @@ class Filter {
 
   }
 }
+
+function updatePhotonSpeeds() {
+  let newSpeed = speed_slider.value();
+  photons.forEach((p) => {
+    p.superpositions.forEach((s) => {
+      s.direction.setMag(newSpeed); // Adjust magnitude of the direction vector
+    });
+  });
+}
+
 
 function measure(photon, filter) {
 
