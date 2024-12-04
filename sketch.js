@@ -10,6 +10,8 @@ let standard_basis = [];
 // can then make interaction zone larger so we get less clipping
 
 let speed_slider;
+let select;
+let s;
 
 function setup() {
   createCanvas(windowWidth-200, windowHeight-200);
@@ -18,16 +20,21 @@ function setup() {
   noStroke();
 
   speed_slider = createSlider(0, 10, 4, 1);
-  speed_slider.position(50, height);
-
+  speed_slider.position(200, height+50);
   speed_slider.input(updatePhotonSpeeds);
 
   standard_basis.push(createVector(1, 0));
   standard_basis.push(createVector(0, 1));
 
-  // Canvas Simulation
-  // initializeDraft();
-  initializeInterferometer();
+
+  select = createSelect();
+  select.position(50, height+50);
+  select.option("Cyclical");
+  select.option("Interferometer");
+  select.selected("Cyclical");
+  select.changed(updateCanvas);
+
+  updateCanvas();
 }
 
 function draw() {
@@ -37,9 +44,13 @@ function draw() {
     p.superpositions = p.superpositions.filter((s) => !s.absorbed)
   });
 
-  // if (photons.length <= 0) {
-  //   photons.push(new Photon(createVector(width/4, height/4), createVector(1, 0), createVector(1, 0)));
-  // }
+  photons = photons.filter((p) => p.superpositions.length > 0);
+
+  if (photons.length === 0) {
+    if (s === "Cyclical") {
+      photons.push(new Photon(createVector(width/4, height/4), createVector(1,0), createVector(1, 0), 1));
+    }
+  }
 
   photons.forEach((p) => {
     p.update();
@@ -62,20 +73,38 @@ function draw() {
   });
 }
 
+function updateCanvas() {
+  photons = [];
+  filters = [];
+  mirrors = [];
+  waveplates = [];
+  beamsplitters = [];
+
+  s = select.value();
+  switch (s) {
+    case "Cyclical":
+      initializeCyclical();
+      break;
+    case "Interferometer":
+      initializeInterferometer();
+      break;
+  }
+}
+
 function initializeInterferometer() {
 
   photons.push(new Photon(createVector(width/4-100, height/4), createVector(1, 0), createVector(1, 0), 1));
   waveplates.push(new Waveplate(createVector(width/3 - 100, height/4), PI/6));
 
   mirrors.push(new Mirror(createVector(3*width/4, height / 4), -PI/4)); 
-  mirrors.push(new Mirror(createVector(width/3, 3*height / 4), -PI/4)); 
+  mirrors.push(new Mirror(createVector(width/3-5, 3*height / 4), -PI/4)); 
 
   beamsplitters.push(new Beamsplitter(createVector(width/3, height/4)));
   beamsplitters.push(new Beamsplitter(createVector(3*width/4, 3*height/4)));
 
 }
 
-function initializeDraft() {
+function initializeCyclical() {
 
   photons.push(new Photon(createVector(width/4, height/4), createVector(1,0), createVector(1, 0), 1));
   waveplates.push(new Waveplate(createVector(width/3, height/4), PI/4));
@@ -179,7 +208,7 @@ class Superposition {
     mirrors.forEach((m) => {
       const distance = p5.Vector.dist(m.position, this.position);
     
-      if (distance < speed_slider.value()) {
+      if (distance < 2*speed_slider.value()) {
         const normal = p5.Vector.fromAngle(m.angle).normalize();
 
         const dotProduct = this.direction.dot(normal);
