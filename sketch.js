@@ -6,11 +6,12 @@ let beamsplitters = [];
 
 let standard_basis = [];
 
-const SPEED = 5;
+const SPEED = 3;
 
 function setup() {
   createCanvas(windowWidth-200, windowHeight-200);
   angleMode(RADIANS);
+  colorMode(HSB, 360, 100, 100, 1);
   noStroke();
 
   standard_basis.push(createVector(1, 0));
@@ -24,7 +25,9 @@ function setup() {
 function draw() {
   background(240);
 
-  photons = photons.filter((p) => !p.absorbed);
+  photons.forEach((p) => {
+    p.superpositions = p.superpositions.filter((s) => !s.absorbed)
+  });
 
   // if (photons.length <= 0) {
   //   photons.push(new Photon(createVector(width/4, height/4), createVector(1, 0), createVector(1, 0)));
@@ -32,7 +35,6 @@ function draw() {
 
   photons.forEach((p) => {
     p.update();
-    p.draw();
   });
 
   filters.forEach((f) => {
@@ -54,8 +56,8 @@ function draw() {
 
 function initializeInterferometer() {
 
-  photons.push(new Photon(createVector(width/4-100, height/4), createVector(1,0), createVector(1, 0)));
-  waveplates.push(new Waveplate(createVector(width/3 - 100, height/4), PI/4));
+  photons.push(new Photon(createVector(width/4-100, height/4), createVector(1, 0), createVector(1, 0), 1));
+  waveplates.push(new Waveplate(createVector(width/3 - 100, height/4), PI/6));
 
   mirrors.push(new Mirror(createVector(3*width/4, height / 4), -PI/4)); 
   mirrors.push(new Mirror(createVector(width/3, 3*height / 4), -PI/4)); 
@@ -68,7 +70,7 @@ function initializeInterferometer() {
 
 function initializeDraft() {
 
-  photons.push(new Photon(createVector(width/4, height/4), createVector(1,0), createVector(1, 0)));
+  photons.push(new Photon(createVector(width/4, height/4), createVector(1,0), createVector(1, 0), 1));
   waveplates.push(new Waveplate(createVector(width/3, height/4), PI/4));
 
   mirrors.push(new Mirror(createVector(3*width/4, height / 4), -PI/4));
@@ -80,29 +82,69 @@ function initializeDraft() {
   mirrors.push(new Mirror(createVector(width/5, height / 4), PI/4));
 }
 
-// class Photon {
-//   constructor() {
-//     this.superpositions = [];
-//   }
-// }
-
 class Photon {
-  constructor(position, amplitudes, direction) {
+  constructor(position, amplitudes, direction, alpha) {
+    this.superpositions = [];
+    this.superpositions.push(new Superposition(position, amplitudes, direction, alpha));
+    this.closeToBeamsplitter = false;
+  }
+
+  update() {
+    this.superpositions.forEach((s) => {
+      s.update();
+      s.draw();
+    });
+
+    this.closeToBeamsplitter = this.superpositions.some((s) => 
+      beamsplitters.some((b) => p5.Vector.dist(b.position, s.position) < SPEED)
+    );
+
+
+    if (this.closeToBeamsplitter) {
+
+      const original_superpositions = [...this.superpositions];
+
+      original_superpositions.forEach((s) => {
+        
+        const percent_vertical = sin(s.rotation)**2;
+
+        if (1-percent_vertical > 0) {
+          this.superpositions.push(
+            new Superposition(s.position.copy(), createVector(1, 0), s.direction.copy().normalize(), 1-percent_vertical)
+          );
+        };
+        if (percent_vertical > 0) {
+          this.superpositions.push(
+            new Superposition(s.position.copy(), createVector(0, 1), s.direction.copy().rotate(PI/4).normalize(), percent_vertical)
+          );  
+        };
+
+        this.superpositions = this.superpositions.filter((item) => item !== s);
+      });
+
+      this.closeToBeamsplitter = false;
+    } 
+  }
+}
+
+class Superposition {
+  constructor(position, amplitudes, direction, alpha) {
     this.position = position
     this.amplitudes = amplitudes;
     this.direction = direction.mult(SPEED);
     this.rotation = atan2(this.amplitudes.y, this.amplitudes.x);
     this.absorbed = false;
+    this.alpha = alpha;
   }
 
   draw() {
-    fill('yellow')
+    fill(50, 100, 100, this.alpha);
     circle(this.position.x, this.position.y, 20);
     
     push();
     translate(this.position.x, this.position.y);
     rotate(this.rotation);
-    fill('black');
+    fill(0, 0, 0, this.alpha);
     triangle(-5, 5, 5, 5, 0, -5);
     pop();
   }
@@ -146,14 +188,6 @@ class Photon {
         this.amplitudes = p5.Vector.fromAngle(this.rotation);
       }
     });
-
-    beamsplitters.forEach((b) => {
-      if (p5.Vector.dist(b.position, this.position) < SPEED) {
-        // photons that are vertically polarized dont change direction
-        // photons that are horizontally polarized change direction
-        
-      }
-    })
 
   }
 }
@@ -278,8 +312,10 @@ function keyPressed() {
     }
   } else if (key === "r") {
     photons.forEach((p) => {
-      p.amplitudes = p5.Vector.fromAngle(random(0, TWO_PI));
-      p.rotation = atan2(p.amplitudes.y, p.amplitudes.x);
+      p.superpositions.forEach((s) => {
+        s.amplitudes = p5.Vector.fromAngle(random(0, TWO_PI));
+        s.rotation = atan2(s.amplitudes.y, s.amplitudes.x);
+      })
     })
   }
 }
