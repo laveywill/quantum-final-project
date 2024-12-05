@@ -10,6 +10,8 @@ let speed_slider;
 let select;
 let s;
 
+const WAVEPLATE_COOLDOWN = 500;
+
 function setup() {
   createCanvas(windowWidth, windowHeight-200);
   angleMode(RADIANS);
@@ -192,10 +194,18 @@ class Photon {
           this.superpositions = this.superpositions.filter((item) => item !== s);
         })
       } else {
-        // console.log("YEAHHHH")
         this.superpositions.forEach((s) => {
           // create "aggregate" position of the photon
           // can weight the angles based on the "alpha" values
+
+          const weightedRotation = this.superpositions.reduce(
+            (acc, s) => acc + s.alpha * s.rotation,
+            0
+          );
+
+          this.superpositions = [
+            new Superposition(random(this.superpositions).position.copy(), createVector(sin(weightedRotation), cos(weightedRotation)), createVector(0, 1), 1)
+          ];
 
           
         })
@@ -214,6 +224,7 @@ class Superposition {
     this.rotation = atan2(this.amplitudes.y, this.amplitudes.x);
     this.absorbed = false;
     this.alpha = alpha;
+    this.lastWaveplateInteraction = 0;
   }
 
   draw() {
@@ -267,9 +278,16 @@ class Superposition {
     });
 
     waveplates.forEach((w) => {
-      if (p5.Vector.dist(w.position, this.position) < speed_slider.value()/2) {
+      if (
+        p5.Vector.dist(w.position, this.position) < speed_slider.value() &&
+        millis() - this.lastWaveplateInteraction > WAVEPLATE_COOLDOWN
+      ) {
+        // Apply waveplate effect
         this.rotation += w.angle;
         this.amplitudes = p5.Vector.fromAngle(this.rotation);
+    
+        // Update the last interaction time
+        this.lastWaveplateInteraction = millis();
       }
     });
 
