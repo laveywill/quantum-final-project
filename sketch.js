@@ -10,7 +10,7 @@ let speed_slider;
 let select;
 let s;
 
-const WAVEPLATE_COOLDOWN = 500;
+const WAVEPLATE_COOLDOWN = 200;
 
 function setup() {
   createCanvas(windowWidth, windowHeight-200);
@@ -18,7 +18,7 @@ function setup() {
   colorMode(HSB, 360, 100, 100, 1);
   noStroke();
 
-  speed_slider = createSlider(0, 40, 4, 1);
+  speed_slider = createSlider(0, 15, 4, 1);
   speed_slider.position(200, height+50);
   speed_slider.input(updatePhotonSpeeds);
 
@@ -33,7 +33,7 @@ function setup() {
   select.option("45 Degree");
   select.option("Cyclical");
   select.option("Interferometer");
-  select.selected("Basic");
+  select.selected("Interferometer");
   select.changed(updateCanvas);
 
   updateCanvas();
@@ -57,7 +57,7 @@ function draw() {
       photons.push(new Photon(createVector(width/4, height/2), createVector(0, 1), createVector(1, 0), 1));
     } else if (s === "45 Degree") {
       photons.push(new Photon(createVector(width/4, height/2), createVector(1 / sqrt(2), 1 / sqrt(2)), createVector(1, 0), 1));
-    }
+    } 
   }
 
   photons.forEach((p) => {
@@ -164,7 +164,7 @@ class Photon {
     });
 
     this.closeToBeamsplitter = this.superpositions.some((s) => 
-      beamsplitters.some((b) => p5.Vector.dist(b.position, s.position) < speed_slider.value()/2)
+      beamsplitters.some((b) => p5.Vector.dist(b.position, s.position) < speed_slider.value())
     );
 
 
@@ -195,9 +195,6 @@ class Photon {
         })
       } else {
         this.superpositions.forEach((s) => {
-          // create "aggregate" position of the photon
-          // can weight the angles based on the "alpha" values
-
           const weightedRotation = this.superpositions.reduce(
             (acc, s) => acc + s.alpha * s.rotation,
             0
@@ -206,8 +203,6 @@ class Photon {
           this.superpositions = [
             new Superposition(random(this.superpositions).position.copy(), createVector(sin(weightedRotation), cos(weightedRotation)), createVector(0, 1), 1)
           ];
-
-          
         })
       }
 
