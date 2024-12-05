@@ -6,20 +6,17 @@ let beamsplitters = [];
 
 let standard_basis = [];
 
-// consider adding wait times so that elements of the simulation only act once,
-// can then make interaction zone larger so we get less clipping
-
 let speed_slider;
 let select;
 let s;
 
 function setup() {
-  createCanvas(windowWidth-200, windowHeight-200);
+  createCanvas(windowWidth, windowHeight-200);
   angleMode(RADIANS);
   colorMode(HSB, 360, 100, 100, 1);
   noStroke();
 
-  speed_slider = createSlider(0, 10, 4, 1);
+  speed_slider = createSlider(0, 40, 4, 1);
   speed_slider.position(200, height+50);
   speed_slider.input(updatePhotonSpeeds);
 
@@ -29,16 +26,19 @@ function setup() {
 
   select = createSelect();
   select.position(50, height+50);
+  select.option("Vertical");
+  select.option("Horizontal");
+  select.option("45 Degree");
   select.option("Cyclical");
   select.option("Interferometer");
-  select.selected("Cyclical");
+  select.selected("Basic");
   select.changed(updateCanvas);
 
   updateCanvas();
 }
 
 function draw() {
-  background(240);
+  background(0, 0, 95);
 
   photons.forEach((p) => {
     p.superpositions = p.superpositions.filter((s) => !s.absorbed)
@@ -49,6 +49,12 @@ function draw() {
   if (photons.length === 0) {
     if (s === "Cyclical") {
       photons.push(new Photon(createVector(width/4, height/4), createVector(1,0), createVector(1, 0), 1));
+    } else if (s === "Vertical") {
+      photons.push(new Photon(createVector(width/4, height/2), createVector(1, 0), createVector(1, 0), 1));
+    } else if (s === "Horizontal")  {
+      photons.push(new Photon(createVector(width/4, height/2), createVector(0, 1), createVector(1, 0), 1));
+    } else if (s === "45 Degree") {
+      photons.push(new Photon(createVector(width/4, height/2), createVector(1 / sqrt(2), 1 / sqrt(2)), createVector(1, 0), 1));
     }
   }
 
@@ -82,6 +88,15 @@ function updateCanvas() {
 
   s = select.value();
   switch (s) {
+    case "Vertical":
+      initializeVertical();
+      break;
+    case "Horizontal":
+      initializeHorizontal();
+      break;
+    case "45 Degree":
+      initialize45();
+      break;
     case "Cyclical":
       initializeCyclical();
       break;
@@ -91,13 +106,28 @@ function updateCanvas() {
   }
 }
 
+function initializeVertical() {
+  photons.push(new Photon(createVector(width/4, height/2), createVector(1, 0), createVector(1, 0), 1));
+  filters.push(new Filter(createVector(width/2, height/2), createVector(1,0)));
+}
+
+function initializeHorizontal() {
+  photons.push(new Photon(createVector(width/4, height/2), createVector(0, 1), createVector(1, 0), 1));
+  filters.push(new Filter(createVector(width/2, height/2), createVector(1,0)));
+}
+
+function initialize45() {
+  photons.push(new Photon(createVector(width/4, height/2), createVector(1/sqrt(2), 1/sqrt(2)), createVector(1, 0), 1));
+  filters.push(new Filter(createVector(width/2, height/2), createVector(1,0)));
+}
+
 function initializeInterferometer() {
 
   photons.push(new Photon(createVector(width/4-100, height/4), createVector(1, 0), createVector(1, 0), 1));
   waveplates.push(new Waveplate(createVector(width/3 - 100, height/4), PI/6));
 
-  mirrors.push(new Mirror(createVector(3*width/4, height / 4), -PI/4)); 
-  mirrors.push(new Mirror(createVector(width/3-5, 3*height / 4), -PI/4)); 
+  mirrors.push(new Mirror(createVector(3*width/4, height / 4), PI/4)); 
+  mirrors.push(new Mirror(createVector(width/3-5, 3*height / 4), PI/4)); 
 
   beamsplitters.push(new Beamsplitter(createVector(width/3, height/4)));
   beamsplitters.push(new Beamsplitter(createVector(3*width/4, 3*height/4)));
@@ -109,13 +139,13 @@ function initializeCyclical() {
   photons.push(new Photon(createVector(width/4, height/4), createVector(1,0), createVector(1, 0), 1));
   waveplates.push(new Waveplate(createVector(width/3, height/4), PI/4));
 
-  mirrors.push(new Mirror(createVector(3*width/4, height / 4), -PI/4));
-  mirrors.push(new Mirror(createVector(3*width/4, 3*height / 4), PI/4));
+  mirrors.push(new Mirror(createVector(3*width/4, height / 4), PI/4));
+  mirrors.push(new Mirror(createVector(3*width/4, 3*height / 4), -PI/4));
 
   filters.push(new Filter(createVector(width/3, 3*height/4), createVector(1,0)))
 
-  mirrors.push(new Mirror(createVector(width/5, 3*height / 4), -PI/4));
-  mirrors.push(new Mirror(createVector(width/5, height / 4), PI/4));
+  mirrors.push(new Mirror(createVector(width/5, 3*height / 4), PI/4));
+  mirrors.push(new Mirror(createVector(width/5, height / 4), -PI/4));
 }
 
 class Photon {
@@ -138,25 +168,38 @@ class Photon {
 
     if (this.closeToBeamsplitter) {
 
-      const original_superpositions = [...this.superpositions];
+      if (this.superpositions.length === 1) {
 
-      original_superpositions.forEach((s) => {
-        
-        const percent_vertical = sin(s.rotation)**2;
+        const original_superpositions = [...this.superpositions];
 
-        if (1-percent_vertical > 0) {
-          this.superpositions.push(
-            new Superposition(s.position.copy(), createVector(1, 0), s.direction.copy().normalize(), 1-percent_vertical)
-          );
-        };
-        if (percent_vertical > 0) {
-          this.superpositions.push(
-            new Superposition(s.position.copy(), createVector(0, 1), s.direction.copy().rotate(PI/2).normalize(), percent_vertical)
-          );  
-        };
+        original_superpositions.forEach((s) => {
+          
+          const percent_vertical = sin(s.rotation)**2;
 
-        this.superpositions = this.superpositions.filter((item) => item !== s);
-      });
+          if (1-percent_vertical > 0) {
+            this.superpositions.push(
+              new Superposition(s.position.copy(), createVector(1, 0), s.direction.copy().normalize(), 1-percent_vertical)
+            );
+            console.log(1-percent_vertical)
+          }
+          if (percent_vertical > 0) {
+            this.superpositions.push(
+              new Superposition(s.position.copy(), createVector(0, 1), s.direction.copy().rotate(PI/2).normalize(), percent_vertical)
+            );  
+            console.log(percent_vertical)
+          }
+
+          this.superpositions = this.superpositions.filter((item) => item !== s);
+        })
+      } else {
+        // console.log("YEAHHHH")
+        this.superpositions.forEach((s) => {
+          // create "aggregate" position of the photon
+          // can weight the angles based on the "alpha" values
+
+          
+        })
+      }
 
       this.closeToBeamsplitter = false;
     } 
@@ -187,16 +230,17 @@ class Superposition {
 
   update() {
     if (this.position.x > width) {
-      this.position.x = 0;
+      this.absorbed = true;
     } else if (this.position.x < 0) {
-      this.position.x = width;
+      this.absorbed = true;
     } else if (this.position.y > height) {
-      this.position.y = 0;
+      this.absorbed = true;
     } else if (this.position.y < 0) {
-      this.position.y = height;
-    } else {
-      this.position.add(this.direction);
-    }
+      this.absorbed = true;
+    } 
+      
+    this.position.add(this.direction);
+    
 
     filters.forEach((f) => {
       if (p5.Vector.dist(f.position, this.position) < speed_slider.value()) {
@@ -206,14 +250,18 @@ class Superposition {
     });
 
     mirrors.forEach((m) => {
-      const distance = p5.Vector.dist(m.position, this.position);
+      // Define start and end of the mirror line
+      let start = p5.Vector.fromAngle(m.angle).mult(-30).add(m.position);
+      let end = p5.Vector.fromAngle(m.angle).mult(30).add(m.position);
     
-      if (distance < 2*speed_slider.value()) {
-        const normal = p5.Vector.fromAngle(m.angle).normalize();
-
-        const dotProduct = this.direction.dot(normal);
-        const reflection = this.direction.sub(p5.Vector.mult(normal, 2 * dotProduct));
+      // Check if photon intersects the mirror
+      if (lineSegmentIntersects(this.position, this.direction, start, end)) {
+        // Calculate normal vector
+        let normal = p5.Vector.sub(end, start).rotate(HALF_PI).normalize();
     
+        // Reflect photon direction
+        let dotProduct = this.direction.dot(normal);
+        let reflection = this.direction.sub(p5.Vector.mult(normal, 2 * dotProduct));
         this.direction = reflection.normalize().setMag(speed_slider.value());
       }
     });
@@ -259,7 +307,7 @@ class Mirror {
     stroke('grey');
     strokeWeight(4);
     translate(this.position.x, this.position.y);
-    rotate(-this.angle);
+    rotate(this.angle);
     line(-30, 0, 30, 0);
     pop();
   }
@@ -327,6 +375,28 @@ function updatePhotonSpeeds() {
     });
   });
 }
+
+function lineSegmentIntersects(position, direction, start, end) {
+  let ab = p5.Vector.sub(end, start); // Vector from start to end of mirror
+  let ap = p5.Vector.sub(position, start); // Vector from start to photon position
+  
+  // Project photon onto mirror line
+  let projectionLength = ap.dot(ab) / ab.magSq();
+  
+  // Check if projection lies within segment bounds
+  if (projectionLength < 0 || projectionLength > 1) {
+    return false; // Outside the segment
+  }
+  
+  // Compute the closest point on the line segment
+  let projection = ab.copy().mult(projectionLength);
+  let closestPoint = start.copy().add(projection);
+  
+  // Check distance from photon to closest point
+  let distanceToLine = p5.Vector.dist(closestPoint, position);
+  return distanceToLine < 5; // 5 is the collision threshold
+}
+
 
 
 function measure(photon, filter) {
