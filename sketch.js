@@ -164,15 +164,16 @@ class Photon {
     });
 
     this.closeToBeamsplitter = this.superpositions.some((s) => 
-      beamsplitters.some((b) => p5.Vector.dist(b.position, s.position) < speed_slider.value())
+      beamsplitters.some((b) => p5.Vector.dist(b.position, s.position) < speed_slider.value()/2)
     );
 
 
     if (this.closeToBeamsplitter) {
 
-      if (this.superpositions.length === 1) {
+      const original_superpositions = [...this.superpositions];
 
-        const original_superpositions = [...this.superpositions];
+      if (original_superpositions.length === 1) {
+        console.log("first")
 
         original_superpositions.forEach((s) => {
           
@@ -193,7 +194,7 @@ class Photon {
 
           this.superpositions = this.superpositions.filter((item) => item !== s);
         })
-      } else {
+      } else if (original_superpositions.length > 1) {
         this.superpositions.forEach((s) => {
           const weightedRotation = this.superpositions.reduce(
             (acc, s) => acc + s.alpha * s.rotation,
